@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><name>Night walk</name>
+    <trkseg>
+      <trkpt lat="25.0330" lon="121.5654"><time>2026-03-12T15:40:00Z</time></trkpt>
+      <trkpt lat="25.0335" lon="121.5659"><time>2026-03-12T15:50:00Z</time></trkpt>
+      <trkpt lat="25.0340" lon="121.5664"><time>2026-03-12T16:05:00Z</time></trkpt>
+      <trkpt lat="25.0345" lon="121.5669"><time>2026-03-12T16:15:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

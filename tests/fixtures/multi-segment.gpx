@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><name>Day walk</name>
+    <trkseg>
+      <trkpt lat="25.0330" lon="121.5654"><ele>10</ele><time>2026-03-12T01:00:00Z</time></trkpt>
+      <trkpt lat="25.0340" lon="121.5664"><ele>12</ele><time>2026-03-12T01:00:05Z</time></trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="25.0400" lon="121.5700"><ele>15</ele><time>2026-03-12T02:00:00Z</time></trkpt>
+      <trkpt lat="25.0410" lon="121.5710"><ele>16</ele><time>2026-03-12T02:00:10Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

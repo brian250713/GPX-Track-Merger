@@ -1,0 +1,15 @@
+/* Design tokens (D11). Values mirror src/styles/tokens.ts — see tests/tokens.test.ts */
+:root {
+  --text: #2d3748;
+  --text-muted: #64748b;
+  --bg: #ffffff;
+  --bg-cream: #fff9f5;
+  --primary: #fdbcb4;
+  --secondary: #add8e6;
+  --accent-purple: #e6e6fa;
+  --accent-mint: #98ff98;
+  --cta: #22c55e;
+  --cta-dark: #15803d;
+  --font-heading: "Fredoka Variable", "Chiron GoRound TC Variable", sans-serif;
+  --font-body: "Nunito Variable", "Chiron GoRound TC Variable", sans-serif;
+}
