@@ -32,7 +32,8 @@ function daysToGeoJSON(days: Day[]): GeoJSON.FeatureCollection<GeoJSON.LineStrin
   return { type: 'FeatureCollection', features };
 }
 
-function colorMatchExpression(days: Day[]): maplibregl.ExpressionSpecification {
+export function colorMatchExpression(days: Day[]): maplibregl.ExpressionSpecification | string {
+  if (days.length === 0) return '#000000';
   const expr: unknown[] = ['match', ['get', 'dayIndex']];
   for (const day of days) {
     expr.push(day.dayIndex, day.color);
@@ -56,6 +57,28 @@ export function createMapView(container: HTMLElement, basemapId: string): MapVie
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
   let currentDays: Day[] = [];
+
+  // Sync layers + camera. Safe to call any time:
+  // - addSource/addLayer/setData only need the style JSON parsed
+  //   (style._loaded), NOT fully-loaded tiles.
+  // - map.loaded()/isStyleLoaded()/once('load') all wait for every tile,
+  //   so gating on them loses the update forever when tiles hang
+  //   (uploaded tracks would never appear, with no error).
+  function syncNow(): boolean {
+    if (!map.getStyle()) return false;
+    try {
+      ensureLayers();
+    } catch (e) {
+      if (e instanceof Error && /not done loading/i.test(e.message)) return false;
+      throw e;
+    }
+    fitToDays();
+    return true;
+  }
+
+  function syncSoon() {
+    if (!syncNow()) map.once('style.load', () => void syncNow());
+  }
 
   function ensureLayers() {
     const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
@@ -107,22 +130,12 @@ export function createMapView(container: HTMLElement, basemapId: string): MapVie
     );
   }
 
-  map.on('load', () => {
-    ensureLayers();
-  });
+  syncSoon();
 
   return {
     setDays(days: Day[]) {
       currentDays = days;
-      if (!map.loaded()) {
-        map.once('load', () => {
-          ensureLayers();
-          fitToDays();
-        });
-        return;
-      }
-      ensureLayers();
-      fitToDays();
+      syncSoon();
     },
     remove() {
       map.remove();
