@@ -149,6 +149,24 @@ export function needsPanIntoView(point: { x: number; y: number }, width: number,
   return point.x < margin || point.y < margin || point.x > width - margin || point.y > height - margin;
 }
 
+/**
+ * Pixels to pan so a popup (rect relative to the map) sits inside the map with
+ * an 8px margin. A popup larger than the map aligns to the top-left edge.
+ */
+export function popupPanOffset(
+  rect: { left: number; right: number; top: number; bottom: number },
+  width: number,
+  height: number,
+): [number, number] {
+  const margin = 8;
+  const axis = (start: number, end: number, size: number) => {
+    if (start < margin) return start - margin;
+    if (end > size - margin) return Math.min(end - (size - margin), start - margin);
+    return 0;
+  };
+  return [axis(rect.left, rect.right, width), axis(rect.top, rect.bottom, height)];
+}
+
 export interface LeafRow {
   name: string;
   takenAt?: string;
@@ -364,7 +382,9 @@ export function createMapView(container: HTMLElement, basemapId: string): MapVie
         [b.minLon, b.minLat],
         [b.maxLon, b.maxLat],
       ],
-      { padding: 48, duration: 400 },
+      // Extra right/bottom room keeps edge pins clear of the zoom buttons and
+      // attribution, which otherwise cover them on the 330px-wide phone map.
+      { padding: { top: 48, left: 48, right: 88, bottom: 64 }, duration: 400 },
     );
   }
 
@@ -374,6 +394,16 @@ export function createMapView(container: HTMLElement, basemapId: string): MapVie
       .setLngLat(lngLat)
       .setDOMContent(el)
       .addTo(map);
+    // The map clips popups; on the narrow phone map one opened from a pin near
+    // the edge would be cut off, so pan until it fits.
+    const mapRect = map.getContainer().getBoundingClientRect();
+    const r = el.parentElement!.getBoundingClientRect();
+    const rect = { left: r.left - mapRect.left, right: r.right - mapRect.left, top: r.top - mapRect.top, bottom: r.bottom - mapRect.top };
+    // Beside the zoom buttons, treat their column as off-limits so they don't cover the close button.
+    const ctrl = map.getContainer().querySelector('.maplibregl-ctrl-top-right')?.getBoundingClientRect();
+    const width = ctrl && ctrl.height > 0 && rect.top < ctrl.bottom - mapRect.top ? ctrl.left - mapRect.left : mapRect.width;
+    const [dx, dy] = popupPanOffset(rect, width, mapRect.height);
+    if (dx !== 0 || dy !== 0) map.panBy([dx, dy], { duration: prefersReducedMotion() ? 0 : 300 });
   }
 
   function showClusterLeaves(clusterId: number, lngLat: maplibregl.LngLatLike, total: number) {
