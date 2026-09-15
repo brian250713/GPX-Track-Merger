@@ -49,7 +49,12 @@ button, input, select, textarea { font-family: inherit; }
   outline-offset: 2px;
 }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition: none !important; transform: none !important; }
+  *, *::before, *::after { transition: none !important; }
+  /* Cancel hover/press offsets, but never MapLibre's positioning transforms
+     (markers and popups sit at the map's top-left corner without them). */
+  :not(.maplibregl-map *), .maplibregl-map .photo-pin, .maplibregl-map .photo-cluster {
+    transform: none !important;
+  }
 }
 
 /* Bento layout */
@@ -115,4 +120,89 @@ h1, h2, h3 { font-family: var(--font-heading); }
   border: 2px solid var(--text);
   border-radius: 8px;
   font-size: 11px;
+}
+/* Photo pins & clusters (photo-pins D8): white base, 3px --text border,
+   hard shadow, Fredoka numerals. Never uses track palette colors. */
+.photo-pin, .photo-cluster {
+  background: var(--bg);
+  border: 3px solid var(--text);
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--text);
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  transition: transform .15s, box-shadow .15s;
+}
+.photo-pin { width: 18px; height: 18px; }
+.photo-cluster {
+  align-items: center;
+  display: inline-flex;
+  font-size: 15px;
+  height: 36px;
+  justify-content: center;
+  min-width: 36px;
+  padding: 0 8px;
+}
+.photo-cluster--md { font-size: 17px; height: 44px; min-width: 44px; }
+.photo-cluster--lg { font-size: 19px; height: 54px; min-width: 54px; }
+.photo-pin:not(:disabled):hover, .photo-cluster:not(:disabled):hover {
+  box-shadow: 2px 2px 0 var(--text);
+  transform: translate(1px, 1px);
+}
+.photo-pin:not(:disabled):active, .photo-cluster:not(:disabled):active {
+  box-shadow: 1px 1px 0 var(--text);
+  transform: translate(2px, 2px);
+}
+/* MapLibre markers must not clip the focus ring or shrink buttons. */
+.maplibregl-marker .photo-pin, .maplibregl-marker .photo-cluster { flex-shrink: 0; }
+/* Clay popups for photo pins (D7): text set via textContent, never HTML. */
+.maplibregl-popup .maplibregl-popup-content {
+  background: var(--bg);
+  border: 3px solid var(--text);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--text);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  max-width: 280px;
+  padding: 12px 16px;
+}
+.maplibregl-popup .maplibregl-popup-close-button {
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+.maplibregl-popup .maplibregl-popup-close-button:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 2px;
+}
+.maplibregl-popup-tip { display: none; }
+.photo-popup__name, .photo-popup__time { overflow-wrap: anywhere; }
+.photo-popup__name { font-weight: 700; }
+.photo-popup--list ul {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  margin: 0 0 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 0;
+}
+.photo-popup--list li {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+}
+.photo-popup__more { font-size: 13px; }
+/* Photo summary row (D10): reuses .btn-remove press feedback. */
+.photo-summary {
+  font-size: 14px;
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
 }

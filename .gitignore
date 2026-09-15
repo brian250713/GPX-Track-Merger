@@ -26,3 +26,7 @@ Thumbs.db
 
 # private real-world GPX tracks (location history, do not publish)
 tests/gpx/
+
+# private real-world photos (location history, do not publish; synthetic
+# fixtures live in tests/fixtures/photos/)
+tests/photos/
