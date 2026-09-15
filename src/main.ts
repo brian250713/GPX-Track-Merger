@@ -1,4 +1,9 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { setWorkerUrl } from 'maplibre-gl';
+// MapLibre resolves its worker as a sibling of its own module file, which
+// doesn't exist once Vite bundles it (dev: .vite/deps, build: assets/).
+// Without a worker, GeoJSON sources never render (tracks invisible, no error).
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import '@fontsource-variable/fredoka';
 import '@fontsource-variable/nunito';
 import '@fontsource-variable/chiron-goround-tc';
@@ -11,6 +16,8 @@ import { mountFileList } from './ui/fileList';
 import { mountTimezone } from './ui/timezone';
 import { mountSummary, mountStats } from './ui/summary';
 import { mountControls } from './ui/controls';
+
+setWorkerUrl(maplibreWorkerUrl);
 
 const state = new AppState();
 
