@@ -2,14 +2,18 @@ import { describe, expect, it } from 'vitest';
 import {
   buildLeavesPopupContent,
   buildPhotoPopupContent,
+  clusterClickAction,
   clusterLabel,
   clusterSizeClass,
   createClusterMarkerElement,
   createPinMarkerElement,
   updateClusterMarkerElement,
   contentBounds,
+  leavesCenter,
+  needsPanIntoView,
   mapHintText,
   photosToGeoJSON,
+  popupPanOffset,
   shouldRefit,
   sortLeavesByTakenAt,
 } from '../src/map/mapView';
@@ -151,6 +155,50 @@ describe('marker 元素', () => {
     clusterRoot.querySelector('button')!.click();
     expect(clicks).toBe(2);
     expect(mapClicks).toBe(0);
+  });
+});
+
+describe('點數字圈', () => {
+  // 同座標照片的展開層級是 clusterMaxZoom + 1（22），等於地圖 maxZoom；
+  // 若以「大於 maxZoom」判斷，清單永遠不會出現，只會放大成疊在一起的圖釘。
+  it('展開層級超過 clusterMaxZoom 時顯示清單，否則放大', () => {
+    expect(clusterClickAction(22)).toBe('list');
+    expect(clusterClickAction(21)).toBe('zoom');
+    expect(clusterClickAction(8)).toBe('zoom');
+  });
+
+  // querySourceFeatures 在低縮放層級的座標會對齊圖磚格點（京都測試照片偏約 80 公尺），
+  // 放大中心要用照片原始座標，否則放到最大層級時照片落在畫面外。
+  it('放大中心取照片原始座標範圍的中心', () => {
+    const leaf = (lon: number, lat: number) => ({ geometry: { type: 'Point' as const, coordinates: [lon, lat] } });
+    expect(leavesCenter([leaf(135.7681, 35.0116), leaf(135.7681, 35.0116)])).toEqual([135.7681, 35.0116]);
+    expect(leavesCenter([leaf(120, 22), leaf(122, 24)])).toEqual([121, 23]);
+    expect(leavesCenter([])).toBeNull();
+  });
+});
+
+describe('鍵盤聚焦 marker', () => {
+  // 聚焦到畫面邊緣外的 marker 時，瀏覽器會捲動 overflow:hidden 的地圖容器，
+  // 讓畫布偏移；改由地圖平移把 marker 帶進畫面。
+  it('marker 在畫面外或太靠邊時需要平移，畫面內不需要', () => {
+    expect(needsPanIntoView({ x: 400, y: 240 }, 767, 480)).toBe(false);
+    expect(needsPanIntoView({ x: 711, y: 502 }, 767, 480)).toBe(true);
+    expect(needsPanIntoView({ x: 10, y: 240 }, 767, 480)).toBe(true);
+    expect(needsPanIntoView({ x: 400, y: -5 }, 767, 480)).toBe(true);
+  });
+});
+
+describe('popup 超出地圖', () => {
+  // 窄螢幕地圖只有 330px 寬，280px 的 popup 從靠邊的點展開會被地圖邊緣切掉（實測左側 -38px）。
+  it('回傳讓 popup 回到地圖內（留 8px）所需的平移量，已在地圖內時為 0', () => {
+    expect(popupPanOffset({ left: -38, right: 242, top: 66, bottom: 264 }, 330, 320)).toEqual([-46, 0]);
+    expect(popupPanOffset({ left: 100, right: 380, top: 10, bottom: 200 }, 330, 320)).toEqual([58, 0]);
+    expect(popupPanOffset({ left: 20, right: 300, top: 150, bottom: 340 }, 330, 320)).toEqual([0, 28]);
+    expect(popupPanOffset({ left: 20, right: 300, top: 20, bottom: 200 }, 330, 320)).toEqual([0, 0]);
+  });
+
+  it('popup 比地圖大時優先對齊左上', () => {
+    expect(popupPanOffset({ left: -10, right: 400, top: -5, bottom: 400 }, 330, 320)).toEqual([-18, -13]);
   });
 });
 

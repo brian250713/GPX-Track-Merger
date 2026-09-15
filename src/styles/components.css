@@ -182,6 +182,8 @@ h1, h2, h3 { font-family: var(--font-heading); }
   outline-offset: 2px;
 }
 .maplibregl-popup-tip { display: none; }
+/* Room for the absolutely-positioned close button, which otherwise covers the first row. */
+.photo-popup { padding-right: 20px; }
 .photo-popup__name, .photo-popup__time { overflow-wrap: anywhere; }
 .photo-popup__name { font-weight: 700; }
 .photo-popup--list ul {
@@ -193,12 +195,18 @@ h1, h2, h3 { font-family: var(--font-heading); }
   overflow-y: auto;
   padding: 0;
 }
+/* The phone map is only 320px tall; a 240px list pushed the popup past its bottom edge. */
+@media (max-width: 800px) {
+  .photo-popup--list ul { max-height: 160px; }
+}
 .photo-popup--list li {
   display: flex;
   gap: 8px;
   justify-content: space-between;
   min-width: 0;
 }
+/* Keep "2026.03.12 14:05" whole; the long file name wraps instead. */
+.photo-popup--list .photo-popup__time { flex-shrink: 0; white-space: nowrap; }
 .photo-popup__more { font-size: 13px; }
 /* Photo summary row (D10): reuses .btn-remove press feedback. */
 .photo-summary {
