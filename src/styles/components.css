@@ -30,11 +30,15 @@
   box-shadow: 2px 2px 0 var(--text);
   transform: translate(2px, 2px);
 }
+/* Form controls don't inherit font by default; without this their Chinese
+   text falls back to the OS font (differs between Windows and macOS). */
+button, input, select, textarea { font-family: inherit; }
 .btn-remove {
   border: 3px solid var(--text);
   border-radius: 12px;
   box-shadow: 3px 3px 0 var(--text);
   background: var(--bg);
+  color: var(--text);
   font-weight: 700;
   cursor: pointer;
   padding: 2px 10px;
@@ -88,6 +92,9 @@ h1, h2, h3 { font-family: var(--font-heading); }
 .dropzone.dragging { background: var(--bg); }
 .privacy-note, .hint, .empty-note { color: var(--text); font-size: 14px; }
 .day-list, .file-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+/* Grid items default to min-width:auto, so an unbreakable file name would
+   widen the card (and the whole single-column layout on phones). */
+.day-list > li, .file-list > li { min-width: 0; overflow-wrap: anywhere; }
 .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--text); margin-right: 8px; }
 .badge { border-radius: 999px; padding: 2px 10px; font-size: 13px; border: 2px solid var(--text); }
 .badge.ok { background: var(--accent-mint); }
@@ -99,6 +106,10 @@ h1, h2, h3 { font-family: var(--font-heading); }
   border-radius: 12px !important;
   box-shadow: 3px 3px 0 var(--text) !important;
   overflow: hidden;
+}
+/* MapLibre's default focus ring is a faint blue glow clipped by the group. */
+.maplibregl-ctrl-group button:focus:focus-visible {
+  box-shadow: inset 0 0 0 3px var(--text);
 }
 .maplibregl-ctrl-attrib {
   border: 2px solid var(--text);
