@@ -20,10 +20,21 @@ export function mountFileList(container: HTMLElement, state: AppState) {
         })
         .join('') +
       '</ul>';
-    container.querySelectorAll<HTMLButtonElement>('.btn-remove').forEach((btn) => {
-      btn.addEventListener('click', () => state.removeFile(btn.dataset.id!));
+    const buttons = [...container.querySelectorAll<HTMLButtonElement>('.btn-remove')];
+    buttons.forEach((btn, index) => {
+      btn.addEventListener('click', () => {
+        const hadFocus = document.activeElement === btn;
+        state.removeFile(btn.dataset.id!);
+        // The re-render destroyed the focused button; keep keyboard users in
+        // place instead of dropping focus back to the top of the page.
+        if (!hadFocus) return;
+        const remaining = container.querySelectorAll<HTMLButtonElement>('.btn-remove');
+        (remaining[Math.min(index, remaining.length - 1)] ?? container).focus();
+      });
     });
   }
+  // Focus target when the last file is removed (not in the Tab order).
+  container.tabIndex = -1;
   state.subscribe(render);
   render();
 }
