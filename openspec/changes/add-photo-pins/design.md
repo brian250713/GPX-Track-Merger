@@ -57,6 +57,7 @@ core/photoMeta.ts
 ```
 
 - HEIC 是 ISOBMFF 容器格式，自己寫解析的成本太高，所以用套件。候選是 `exifr` 與 `exifreader`：`exifr` 可以只讀需要的 tag、分段讀檔，但 npm 上最後發布是 2022 年；`exifreader` 有持續維護，但要確認只讀部分 tag 時的大小。**第一個任務會實際比較兩者**（打包後大小、HEIC 支援、能否只讀檔頭），結果寫回這裡。
+- **Spike 1.1 結果（2026-09-15）：選定 `exifreader@^4.45.0`**。`exifr@7.1.3` 最後發布 2022-05-01（超過 4 年未維護，unpack ~1.29MB），雖支援 HEIC 且可只讀 GPS tag、分段讀檔，但維護風險高。`exifreader@4.45.0` 發布於 2026-09-10（維護自 2012 年起持續，0 dependencies，內建 TS 型別，unpack ~1.2MB），支援 JPEG/HEIC（含 GPS 與 `DateTimeOriginal`），`expanded: true` 時直接給出正負號處理好的 `gps.Latitude/Longitude`（南緯/西經為負），`length` 選項可只讀檔頭（HEIC 的 metadata box 若在檔尾則自動追加讀取），另支援 custom build（只留 JPEG+HEIC+Exif 可壓到約 9 KiB Brotli，日後可再瘦身）。注意 CVE-2026-53496（HEIC truncated box RangeError）已在 4.40.1 修復，本專案使用 4.45.0 且 `readPhotoMeta` 全面包 try/catch 回傳 `null`。用法：`import('exifreader')` 動態載入後 `ExifReader.load(arrayBuffer, { expanded: true })`，讀 `tags.gps.{Latitude,Longitude}` 與 `tags.exif.DateTimeOriginal.description`（格式 `2026:03:12 14:05:33`）。
 - 只要求 GPS 與 `DateTimeOriginal` 兩組 tag，**不解碼影像**、不取內嵌縮圖。
 - 用 `import()` 動態載入：第一次加入照片時才下載這個 chunk。只用 GPX 的使用者不受影響。chunk 從本站載入，不增加第三方請求。
 - 其他模組只依賴 `readPhotoMeta`，之後要換套件只改這一個檔案。
@@ -146,9 +147,11 @@ source "photos"  (geojson, cluster: true)
 ## Risks / Trade-offs
 
 - **[手機相片選擇器移除位置資訊]** iOS Safari 與 Android 13+ 的系統相片選擇器，在網頁選取照片時可能會把 GPS 拿掉，導致「全部沒有位置」。→ 實作前先做實機 spike（tasks 第 1 組）。如果確認會被移除，在「有位置為 0 張」時於照片摘要加上說明文字（這會是 spec 的補充，屆時再修改 spec）。
+  - Spike 1.2（2026-09-15，文獻研究，無實機）：ExifReader 官方文件 GPS 章節與 issue #378 明確指出：`<input type="file" accept="image/*">` 會導致 Android（及部分 iOS）瀏覽器在回傳前剝離 GPS。本專案 `accept` 使用副檔名寫法（`.gpx,.jpg,.jpeg,.heic,.heif`）而非 `image/*`，可避開此陷阱。iOS「相簿」直接選取仍可能因系統隱私設定移除位置（使用者需在分享時選「保留位置」）；「檔案」App 選取一般會保留。實機（iOS Safari／Android Chrome × 相簿／檔案）驗證列為 8.1 手動驗收的一部分；若實測確認相簿路徑必去 GPS，再補 spec（0 張有位置時的說明文字）與 `accept` 寫法調整。
 - **[EXIF 套件維護狀況]** `exifr` 很久沒有發布新版。→ 用 D2 的包裝層隔離；比較時把維護狀況列入考量。
 - **[HEIC 的 EXIF 可能不在檔案開頭]** 有些 HEIC 的 metadata box 位置比較後面，只讀檔頭可能讀不到。→ 比較套件時用真實 iPhone HEIC 測試，必要時允許讀取較大的範圍。
 - **[`querySourceFeatures` 只回傳已載入 tile 內的 feature]** 圖磚或 worker 慢的時候，數字圈可能晚一點才出現；同一個 feature 可能在多個 tile 重複出現。→ 在 `sourcedata`（source 載入完成）與 `moveend` 時都重新同步，並依 id 去重。
+  - Spike 1.3（2026-09-15，程式碼驗證）：GeoJSON cluster 計算在 MapLibre worker 內（`maplibre-gl-worker.mjs`，已由 `main.ts` 經 `setWorkerUrl` 指定，track source 既有用法證明該路徑可用；cluster 用同一 worker，不需額外設定）。`photos` source 設定為 `cluster: true, clusterRadius: 50, clusterMaxZoom: 21, maxzoom: 22`（MapLibre 要求 `clusterMaxZoom < maxzoom`，source `maxzoom` 預設 18 故必須顯式設為 22；21/22 組合讓座標完全相同的照片在最大縮放仍維持數字圈，走 `getClusterLeaves` 清單 popup）。同步時機：`sourcedata`（檢查 `sourceId === 'photos' && sourceDataType === 'content'`）與 `moveend`，`querySourceFeatures('photos')` 後依 `cluster_id`／photo id 去重（跨 tile 重複）。
 - **[大量照片時的讀取時間]** 300 張 HEIC 在低階手機上可能要數秒到數十秒。→ 限制並行數、顯示進度；不解碼影像，只讀 metadata。
 - **[檔名可能含個人資訊]** 檔名只保留在記憶體中顯示在 popup，不離開瀏覽器，重新整理即消失。
 - **[`exifr`／`exifreader` 在 jsdom 中的行為]** 測試環境可能無法完整模擬 `Blob.slice`／`arrayBuffer`。→ EXIF 套件本身用真實照片 fixture 做少量整合測試，其他邏輯（驗證、時間格式、分類、狀態）用純函式與假資料測試。
@@ -162,6 +165,9 @@ source "photos"  (geojson, cluster: true)
 ## Open Questions
 
 - EXIF 套件選 `exifr` 還是 `exifreader`？（tasks 1.1 決定，結果寫回 D2）
+  - 已決定：`exifreader@^4.45.0`（見 D2）。
 - 手機上選取照片是否會移除 GPS？iOS Safari、Android Chrome 分別是什麼結果？（tasks 1.2）
+  - 文獻結論見 Risks；實機數據待 8.1 驗收時填寫。
 - `clusterRadius` 與數字圈大小的實際數值，需要在畫面上用真實照片分布調整
+  - 初值 `clusterRadius: 50`（MapLibre 預設），數字圈三級大小見 D8；8.1 驗收時微調。
 - 如果手機確實會移除 GPS，是否要改變 `<input accept>` 的寫法（例如不列出 image MIME，讓系統改開「檔案」而不是「相簿」）來保留位置資訊？
