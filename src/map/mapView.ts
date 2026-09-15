@@ -19,6 +19,8 @@ const PHOTOS_CLUSTER_RADIUS = 50;
 const PHOTOS_CLUSTER_MAX_ZOOM = 21;
 const PHOTOS_SOURCE_MAXZOOM = 22;
 const MAX_CLUSTER_LEAVES = 50;
+// Big clusters only expand by a zoom level or two, where a sample's center is close enough.
+const LEAVES_FOR_CENTER = 1000;
 
 export interface MapView {
   setContent(days: Day[], photos: PhotoPin[]): void;
@@ -109,6 +111,42 @@ export function clusterSizeClass(count: number): string {
   if (count < 10) return 'photo-cluster--sm';
   if (count < 100) return 'photo-cluster--md';
   return 'photo-cluster--lg';
+}
+
+/**
+ * D6: identically-located photos expand at clusterMaxZoom + 1, which equals
+ * the map's max zoom, so the list must be chosen against clusterMaxZoom.
+ */
+export function clusterClickAction(expansionZoom: number): 'zoom' | 'list' {
+  return expansionZoom > PHOTOS_CLUSTER_MAX_ZOOM ? 'list' : 'zoom';
+}
+
+/**
+ * Center of the leaves' original coordinates. Cluster positions from
+ * querySourceFeatures are snapped to the tile grid at low zoom (sub-pixel
+ * there, but tens of metres off once zoomed in), so never zoom to those.
+ */
+export function leavesCenter(leaves: Array<{ geometry: GeoJSON.Geometry }>): [number, number] | null {
+  let minLon = Infinity;
+  let minLat = Infinity;
+  let maxLon = -Infinity;
+  let maxLat = -Infinity;
+  for (const leaf of leaves) {
+    if (leaf.geometry.type !== 'Point') continue;
+    const [lon, lat] = leaf.geometry.coordinates;
+    minLon = Math.min(minLon, lon);
+    maxLon = Math.max(maxLon, lon);
+    minLat = Math.min(minLat, lat);
+    maxLat = Math.max(maxLat, lat);
+  }
+  if (minLon === Infinity) return null;
+  return [(minLon + maxLon) / 2, (minLat + maxLat) / 2];
+}
+
+/** Keyboard focus: pan when a marker sits outside (or within 24px of) the map's edge. */
+export function needsPanIntoView(point: { x: number; y: number }, width: number, height: number): boolean {
+  const margin = 24;
+  return point.x < margin || point.y < margin || point.x > width - margin || point.y > height - margin;
 }
 
 export interface LeafRow {
@@ -227,6 +265,8 @@ export function createMapView(container: HTMLElement, basemapId: string): MapVie
   let fittedDays: Day[] | null = null;
   let fittedPhotos: PhotoPin[] | null = null;
   const markers = new Map<string, maplibregl.Marker>();
+  let photoById = new Map<string, PhotoPin>();
+  let photoByIdSource: PhotoPin[] | null = null;
   const clusterInfo = new Map<string, { clusterId: number; lngLat: [number, number]; count: number }>();
   let photoPopup: maplibregl.Popup | null = null;
 
@@ -341,6 +381,7 @@ export function createMapView(container: HTMLElement, basemapId: string): MapVie
     if (!source) return;
     void source.getClusterLeaves(clusterId, MAX_CLUSTER_LEAVES, 0).then(
       (leaves) => {
+        const at = leavesCenter(leaves) ?? lngLat;
         const rows = sortLeavesByTakenAt(
           leaves.map((f) => {
             const p = (f.properties ?? {}) as { name?: unknown; takenAt?: unknown };
@@ -350,7 +391,7 @@ export function createMapView(container: HTMLElement, basemapId: string): MapVie
             };
           }),
         );
-        openPopup(lngLat, buildLeavesPopupContent(document, rows, total));
+        openPopup(at, buildLeavesPopupContent(document, rows, total));
       },
       () => {},
     );
@@ -361,15 +402,25 @@ export function createMapView(container: HTMLElement, basemapId: string): MapVie
     if (!source) return;
     void source.getClusterExpansionZoom(clusterId).then(
       (zoom) => {
-        if (zoom > map.getMaxZoom()) {
+        if (clusterClickAction(zoom) === 'list') {
           showClusterLeaves(clusterId, lngLat, total);
           return;
         }
-        const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-        map.easeTo({ center: lngLat, zoom, duration: reduced ? 0 : 400 });
+        void source.getClusterLeaves(clusterId, LEAVES_FOR_CENTER, 0).then(
+          (leaves) => zoomTo(leavesCenter(leaves) ?? lngLat, zoom),
+          () => zoomTo(lngLat, zoom),
+        );
       },
       () => showClusterLeaves(clusterId, lngLat, total),
     );
+  }
+
+  function prefersReducedMotion(): boolean {
+    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  }
+
+  function zoomTo(center: maplibregl.LngLatLike, zoom: number) {
+    map.easeTo({ center, zoom, duration: prefersReducedMotion() ? 0 : 400 });
   }
 
   function markerKey(props: Record<string, unknown>): string | null {
@@ -380,6 +431,10 @@ export function createMapView(container: HTMLElement, basemapId: string): MapVie
   }
 
   function syncPhotoMarkers() {
+    if (photoByIdSource !== currentPhotos) {
+      photoByIdSource = currentPhotos;
+      photoById = new Map(currentPhotos.map((p) => [p.id, p]));
+    }
     let features: Array<GeoJSON.Feature<GeoJSON.Point>>;
     try {
       features = map.querySourceFeatures(PHOTOS_SOURCE_ID) as Array<GeoJSON.Feature<GeoJSON.Point>>;
@@ -394,7 +449,7 @@ export function createMapView(container: HTMLElement, basemapId: string): MapVie
       seen.add(key);
       const coords = feature.geometry?.coordinates;
       if (!Array.isArray(coords) || coords.length < 2) continue;
-      const lngLat: [number, number] = [coords[0] as number, coords[1] as number];
+      let lngLat: [number, number] = [coords[0] as number, coords[1] as number];
       if (props['cluster'] === true) {
         const clusterId = props['cluster_id'] as number;
         const count = typeof props['point_count'] === 'number' ? (props['point_count'] as number) : 0;
@@ -416,11 +471,15 @@ export function createMapView(container: HTMLElement, basemapId: string): MapVie
       } else {
         const name = typeof props['name'] === 'string' ? props['name'] : '';
         const takenAt = typeof props['takenAt'] === 'string' ? (props['takenAt'] as string) : undefined;
+        // Tile coordinates are grid-snapped at low zoom; pins use the photo's own position.
+        const photo = photoById.get(props['id'] as string);
+        if (photo) lngLat = [photo.lon, photo.lat];
         let marker = markers.get(key);
         if (!marker) {
           const pin = { name, takenAt };
+          const at = lngLat;
           const el = createPinMarkerElement(document, name, () => {
-            openPopup(lngLat, buildPhotoPopupContent(document, pin));
+            openPopup(at, buildPhotoPopupContent(document, pin));
           });
           marker = new maplibregl.Marker({ element: el }).setLngLat(lngLat);
           marker.addTo(map);
@@ -438,6 +497,25 @@ export function createMapView(container: HTMLElement, basemapId: string): MapVie
       }
     }
   }
+
+  // Tabbing to a marker outside the view makes the browser scroll the
+  // overflow:hidden map container, shifting the canvas away from pointer and
+  // marker coordinates. Undo that scroll and pan the map to the marker instead.
+  const mapEl = map.getContainer();
+  mapEl.addEventListener('scroll', () => {
+    mapEl.scrollTop = 0;
+    mapEl.scrollLeft = 0;
+  });
+  mapEl.addEventListener('focusin', (e) => {
+    const markerEl = (e.target as HTMLElement).closest('.maplibregl-marker');
+    if (!markerEl) return;
+    const marker = [...markers.values()].find((m) => m.getElement() === markerEl);
+    if (!marker) return;
+    const lngLat = marker.getLngLat();
+    if (needsPanIntoView(map.project(lngLat), mapEl.clientWidth, mapEl.clientHeight)) {
+      map.easeTo({ center: lngLat, duration: prefersReducedMotion() ? 0 : 300 });
+    }
+  });
 
   // Re-sync on rendered frames once the photo source is loaded (MapLibre's HTML
   // cluster pattern). querySourceFeatures also returns parent-zoom tiles kept

@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   buildLeavesPopupContent,
   buildPhotoPopupContent,
+  clusterClickAction,
   clusterLabel,
   clusterSizeClass,
   createClusterMarkerElement,
   createPinMarkerElement,
   updateClusterMarkerElement,
   contentBounds,
+  leavesCenter,
+  needsPanIntoView,
   mapHintText,
   photosToGeoJSON,
   shouldRefit,
@@ -151,6 +154,36 @@ describe('marker 元素', () => {
     clusterRoot.querySelector('button')!.click();
     expect(clicks).toBe(2);
     expect(mapClicks).toBe(0);
+  });
+});
+
+describe('點數字圈', () => {
+  // 同座標照片的展開層級是 clusterMaxZoom + 1（22），等於地圖 maxZoom；
+  // 若以「大於 maxZoom」判斷，清單永遠不會出現，只會放大成疊在一起的圖釘。
+  it('展開層級超過 clusterMaxZoom 時顯示清單，否則放大', () => {
+    expect(clusterClickAction(22)).toBe('list');
+    expect(clusterClickAction(21)).toBe('zoom');
+    expect(clusterClickAction(8)).toBe('zoom');
+  });
+
+  // querySourceFeatures 在低縮放層級的座標會對齊圖磚格點（京都測試照片偏約 80 公尺），
+  // 放大中心要用照片原始座標，否則放到最大層級時照片落在畫面外。
+  it('放大中心取照片原始座標範圍的中心', () => {
+    const leaf = (lon: number, lat: number) => ({ geometry: { type: 'Point' as const, coordinates: [lon, lat] } });
+    expect(leavesCenter([leaf(135.7681, 35.0116), leaf(135.7681, 35.0116)])).toEqual([135.7681, 35.0116]);
+    expect(leavesCenter([leaf(120, 22), leaf(122, 24)])).toEqual([121, 23]);
+    expect(leavesCenter([])).toBeNull();
+  });
+});
+
+describe('鍵盤聚焦 marker', () => {
+  // 聚焦到畫面邊緣外的 marker 時，瀏覽器會捲動 overflow:hidden 的地圖容器，
+  // 讓畫布偏移；改由地圖平移把 marker 帶進畫面。
+  it('marker 在畫面外或太靠邊時需要平移，畫面內不需要', () => {
+    expect(needsPanIntoView({ x: 400, y: 240 }, 767, 480)).toBe(false);
+    expect(needsPanIntoView({ x: 711, y: 502 }, 767, 480)).toBe(true);
+    expect(needsPanIntoView({ x: 10, y: 240 }, 767, 480)).toBe(true);
+    expect(needsPanIntoView({ x: 400, y: -5 }, 767, 480)).toBe(true);
   });
 });
 
