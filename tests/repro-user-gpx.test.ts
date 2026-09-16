@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseGpx } from '../src/core/parse';
 import { groupByDay, mergeAndSort, totalDistanceKm } from '../src/core/grouping';
+import { computeDayTime, formatTime } from '../src/core/dayTime';
 import type { TrackPoint } from '../src/core/types';
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), 'gpx');
@@ -31,6 +32,19 @@ describe.skipIf(!hasRealFiles)('real user GPX files (tests/gpx)', () => {
         d.segments.some((s) => s.length >= 2),
         `Day ${d.dayIndex} has no drawable segment`,
       ).toBe(true);
+
+      const stats = computeDayTime(d);
+      expect(stats.startTime).not.toBeNull();
+      expect(stats.endTime).not.toBeNull();
+      expect(stats.movingDurationMs).toBeLessThanOrEqual(stats.totalDurationMs);
+      const startStr = formatTime(stats.startTime!, 'Asia/Taipei');
+      const endStr = formatTime(stats.endTime!, 'Asia/Taipei');
+      expect(startStr).toMatch(/^\d{2}:\d{2}$/);
+      expect(endStr).toMatch(/^\d{2}:\d{2}$/);
+      if (stats.avgSpeedKmh !== null) {
+        expect(stats.avgSpeedKmh).toBeGreaterThan(0);
+        expect(stats.avgSpeedKmh).toBeLessThan(50);
+      }
     }
   }, 60000);
 });
