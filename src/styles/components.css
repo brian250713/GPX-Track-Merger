@@ -101,6 +101,51 @@ h1, h2, h3 { font-family: var(--font-heading); }
    widen the card (and the whole single-column layout on phones). */
 .day-list > li, .file-list > li { min-width: 0; overflow-wrap: anywhere; }
 .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--text); margin-right: 8px; }
+/* Day elevation accordion (expandable summary rows). All colors come from
+   design tokens; the per-day track color is set inline from AppState. */
+.day-item { min-width: 0; }
+.day-toggle {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.day-toggle:hover { background: var(--bg); }
+.day-toggle[aria-expanded="true"] {
+  background: var(--bg);
+  border-color: var(--text);
+}
+.elevation-container {
+  min-width: 0;
+  padding: 8px 8px 4px;
+}
+.elevation-container[hidden] { display: none; }
+/* SVG scales with the container; never forces a horizontal scrollbar. */
+.elevation-container svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  background: var(--bg);
+  border: 2px solid var(--text);
+  border-radius: 12px;
+}
+.elevation-empty {
+  margin: 0;
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+}
 .badge { border-radius: 999px; padding: 2px 10px; font-size: 13px; border: 2px solid var(--text); }
 .badge.ok { background: var(--accent-mint); }
 .badge.warn { background: #ffe08a; }

@@ -31,13 +31,41 @@ export function formatDateRange(firstDate: string, lastDate: string): string {
   return `${f(firstDate)} – ${lm}.${ld}`;
 }
 
+/** Legend label: local month/day without leading zeros (`2026-03-05` -> `3/5`). */
+export function formatDayLabel(date: string): string {
+  const parts = date.split('-');
+  if (parts.length !== 3) return date;
+  return `${Number(parts[1])}/${Number(parts[2])}`;
+}
+
+/** Characters preloaded for card fonts; must cover legend labels (`/`) too. */
+export function cardFontSample(title: string): string {
+  return `Day 1234567890/.- – km天總距離 ${title}`;
+}
+
+/**
+ * Pure legend layout: which days fit in a single row before `break`.
+ * `measure` mirrors `ctx.measureText(label).width` so tests can inject an estimate.
+ */
+export function fitLegendDays(days: Day[], measure: (label: string) => number): Day[] {
+  const fitted: Day[] = [];
+  let lx = PADDING;
+  for (const d of days) {
+    const w = measure(formatDayLabel(d.date));
+    if (lx + 44 + w > CARD_SIZE - PADDING) break;
+    fitted.push(d);
+    lx += 52 + w + 40;
+  }
+  return fitted;
+}
+
 async function ensureCardFonts(title: string) {
   const families = [
     '"Fredoka Variable"',
     '"Nunito Variable"',
     '"Chiron GoRound TC Variable"',
   ];
-  const sample = `Day 1234567890. – km天總距離 ${title}`;
+  const sample = cardFontSample(title);
   await Promise.allSettled(
     families.flatMap((fam) => [
       document.fonts.load(`700 96px ${fam}`, sample),
@@ -290,10 +318,9 @@ export async function renderTripCard(opts: RenderOptions): Promise<Blob> {
   ctx.font = `700 44px "Fredoka Variable", "Chiron GoRound TC Variable", sans-serif`;
   let lx = PADDING;
   const ly = pillY + pillH + 70;
-  for (const d of days) {
-    const label = `Day ${d.dayIndex}`;
+  for (const d of fitLegendDays(days, (s) => ctx.measureText(s).width)) {
+    const label = formatDayLabel(d.date);
     const w = ctx.measureText(label).width;
-    if (lx + 44 + w > CARD_SIZE - PADDING) break;
     ctx.beginPath();
     ctx.arc(lx + 20, ly - 14, 20, 0, Math.PI * 2);
     ctx.fillStyle = d.color;
