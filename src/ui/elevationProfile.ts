@@ -2,11 +2,13 @@ import { computeElevationProfile, type ElevationProfile } from '../core/elevatio
 import type { Day } from '../core/types';
 
 const W = 320;
-const H = 140;
+const H = 150;
 const PAD_L = 8;
 const PAD_R = 8;
 const PAD_T = 18;
-const PAD_B = 22;
+const PAD_B = 32;
+/** Baseline for the low-elevation label: below the plot, above the distance row. */
+const ELE_LABEL_Y = H - PAD_B + 10;
 
 /** Fallback vertical range (meters) when the whole day is flat. */
 export const FLAT_RANGE_M = 10;
@@ -63,8 +65,12 @@ export function renderElevationSvg(day: Day, profile?: ElevationProfile): string
     `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}" preserveAspectRatio="xMidYMid meet">` +
     `<title>${esc(label)}</title>` +
     paths +
-    `<text x="${PAD_L}" y="12" font-size="11" fill="currentColor">${fmtInt(hi)} m</text>` +
-    `<text x="${PAD_L}" y="${H - 2}" font-size="11" fill="currentColor">${fmtInt(lo)} m</text>` +
+    // Always label the day's real extremes. `lo`/`hi` drive the vertical scale
+    // only, and the flat-day fallback above widens them past the real values.
+    `<text x="${PAD_L}" y="12" font-size="11" fill="currentColor">${fmtInt(prof.maxEle)} m</text>` +
+    `<text x="${PAD_L}" y="${ELE_LABEL_Y}" font-size="11" fill="currentColor">${fmtInt(prof.minEle)} m</text>` +
+    // Distance ticks keep their own baseline, so the low-elevation label above
+    // can't be misread as a mileage tick.
     `<text x="${W - PAD_R}" y="${H - 2}" font-size="11" fill="currentColor" text-anchor="end">${total.toFixed(1)} km</text>` +
     `<text x="${W / 2}" y="${H - 2}" font-size="11" fill="currentColor" text-anchor="middle">${midKm.toFixed(1)}</text>` +
     `</svg>`

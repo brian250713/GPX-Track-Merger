@@ -51,6 +51,29 @@ describe('renderElevationSvg', () => {
     expect(svg).toContain('km');
   });
 
+  it('2.3 flat day labels the real extremes, not the padded scale range', () => {
+    // The vertical scale falls back to FLAT_RANGE_M so the line stays visible,
+    // but the labels must still read 5 m / 5 m, not the widened 10 m / 0 m.
+    const svg = renderElevationSvg(flatDay());
+    const texts = [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]);
+    expect(texts.filter((t) => t === '5 m')).toHaveLength(2);
+    expect(texts).not.toContain('10 m');
+    expect(texts).not.toContain('0 m');
+  });
+
+  it('2.3 elevation labels and distance ticks sit on separate baselines', () => {
+    const svg = renderElevationSvg(twoSegmentDay());
+    const labels = [...svg.matchAll(/<text[^>]*y="([\d.]+)"[^>]*>([^<]*)<\/text>/g)].map((m) => ({
+      y: Number(m[1]),
+      text: m[2],
+    }));
+    const eleY = new Set(labels.filter((l) => l.text.endsWith(' m')).map((l) => l.y));
+    const distY = new Set(labels.filter((l) => !l.text.endsWith(' m')).map((l) => l.y));
+    expect(eleY.size).toBe(2);
+    expect(distY.size).toBe(1);
+    for (const y of eleY) expect(distY.has(y)).toBe(false);
+  });
+
   it('2.4 responsive viewBox and day color stroke', () => {
     const day = twoSegmentDay();
     const svg = renderElevationSvg(day);

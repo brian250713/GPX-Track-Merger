@@ -4,7 +4,11 @@ import { renderElevationSvg } from './elevationProfile';
 
 export const NO_ELEVATION_TEXT = '該天沒有高度資料';
 
+/** Per-mount counter so `aria-controls` ids stay unique if mounted more than once. */
+let mountSeq = 0;
+
 export function mountSummary(container: HTMLElement, state: AppState) {
+  const panelPrefix = `elevation-panel-${++mountSeq}`;
   // View-only accordion state: never stored in AppState, so expanding a day
   // does not trigger a global emit()/map redraw. Any state change rebuilds
   // the list via subscribe and resets to all-collapsed.
@@ -13,6 +17,13 @@ export function mountSummary(container: HTMLElement, state: AppState) {
   function toggle(dayIndex: number) {
     expanded = expanded === dayIndex ? null : dayIndex;
     render();
+    // render() replaced the whole list, destroying the button that was focused.
+    // Hand focus to its replacement so keyboard users keep their place and
+    // screen readers announce the new aria-expanded state. Only user-driven
+    // toggles do this — a state-driven re-render must not steal focus.
+    container
+      .querySelector<HTMLButtonElement>(`button.day-toggle[data-day="${dayIndex}"]`)
+      ?.focus();
   }
 
   function rowBody(day: (typeof state.days)[number]): string {
@@ -31,13 +42,14 @@ export function mountSummary(container: HTMLElement, state: AppState) {
       state.days
         .map((d) => {
           const open = expanded === d.dayIndex;
+          const panelId = `${panelPrefix}-${d.dayIndex}`;
           return (
             `<li class="day-item">` +
-            `<button type="button" class="day-toggle" aria-expanded="${open ? 'true' : 'false'}" data-day="${d.dayIndex}">` +
+            `<button type="button" class="day-toggle" aria-expanded="${open ? 'true' : 'false'}" aria-controls="${panelId}" data-day="${d.dayIndex}">` +
             `<span class="dot" style="background:${d.color}"></span>` +
             `<strong>Day ${d.dayIndex}</strong> ${d.date} · ${d.distanceKm.toFixed(1)} km` +
             `</button>` +
-            `<div class="elevation-container"${open ? '' : ' hidden'}>` +
+            `<div class="elevation-container" id="${panelId}"${open ? '' : ' hidden'}>` +
             (open ? rowBody(d) : '') +
             `</div></li>`
           );

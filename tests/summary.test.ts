@@ -123,6 +123,17 @@ describe('summary accordion', () => {
     expect(container.querySelectorAll('svg')).toHaveLength(0);
   });
 
+  it('3.4 a state-driven re-render does not steal focus', () => {
+    const state = stub([eleDay(1, '2026-03-12')]);
+    mountSummary(container, state as unknown as AppState);
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    state.emit();
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
+  });
+
   it('3.5 keyboard Enter toggles expansion', () => {
     const state = stub([eleDay(1, '2026-03-12')]);
     mountSummary(container, state as unknown as AppState);
@@ -131,5 +142,39 @@ describe('summary accordion', () => {
     expect(buttons(container)[0].getAttribute('aria-expanded')).toBe('true');
     buttons(container)[0].dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
     expect(buttons(container)[0].getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('3.5 focus stays on the toggled row across the re-render', () => {
+    // render() rebuilds the list, so without an explicit restore the focused
+    // button is destroyed and focus falls back to <body> — keyboard users lose
+    // their place and the new aria-expanded state is never announced.
+    const state = stub([eleDay(1, '2026-03-12'), eleDay(2, '2026-03-13')]);
+    mountSummary(container, state as unknown as AppState);
+    const btn = buttons(container)[1];
+    btn.focus();
+    btn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    let active = document.activeElement as HTMLButtonElement;
+    expect(active.classList.contains('day-toggle')).toBe(true);
+    expect(active.dataset.day).toBe('2');
+    expect(active.getAttribute('aria-expanded')).toBe('true');
+
+    // Collapsing again keeps focus on the same row.
+    active.click();
+    active = document.activeElement as HTMLButtonElement;
+    expect(active.dataset.day).toBe('2');
+    expect(active.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('3.5 each row points at its own panel via aria-controls', () => {
+    const state = stub([eleDay(1, '2026-03-12'), eleDay(2, '2026-03-13')]);
+    mountSummary(container, state as unknown as AppState);
+    const ids = buttons(container).map((b) => b.getAttribute('aria-controls'));
+    expect(new Set(ids).size).toBe(2);
+    for (const id of ids) {
+      expect(id).toBeTruthy();
+      expect(container.querySelector(`#${id}`)?.classList.contains('elevation-container')).toBe(
+        true,
+      );
+    }
   });
 });
