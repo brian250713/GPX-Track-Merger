@@ -194,6 +194,10 @@ describe('day time and pace integration in summary accordion', () => {
     mountSummary(container, state as unknown as AppState);
     buttons(container)[0].click();
 
+    const wrap = container.querySelector('.elevation-container .day-expanded-wrap');
+    expect(wrap).not.toBeNull();
+    expect(wrap!.querySelector('svg')).not.toBeNull();
+    expect(wrap!.querySelector('.day-time-stats')).not.toBeNull();
     expect(container.querySelectorAll('svg')).toHaveLength(1);
     expect(container.textContent).toContain('出發');
     expect(container.textContent).toContain('抵達');

@@ -53,7 +53,7 @@ export function mountSummary(container: HTMLElement, state: AppState) {
       ? renderElevationSvg(day, prof)
       : `<p class="elevation-empty">${NO_ELEVATION_TEXT}</p>`;
     const timeHtml = renderTimeStats(day, state.timeZone);
-    return `${eleHtml}${timeHtml}`;
+    return `<div class="day-expanded-wrap">${eleHtml}${timeHtml}</div>`;
   }
 
   function render() {

@@ -31,8 +31,8 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <section class="clay-card area-upload" aria-label="上傳"><h2>上傳</h2><div id="uploadBox"></div></section>
     <section class="clay-card area-map" aria-label="地圖"><h2>地圖</h2><div id="map"></div><p class="hint" id="mapHint">上傳 GPX 或照片開始</p></section>
     <section class="clay-card area-files" aria-label="檔案"><h2>檔案</h2><div id="fileBox"></div><div id="photoBox"></div></section>
-    <section class="clay-card area-summary" aria-label="分天摘要"><h2>分天摘要</h2><div id="summaryBox"></div></section>
     <section class="clay-card area-stats" aria-label="統計"><h2>統計</h2><div id="statsBox"></div></section>
+    <section class="clay-card area-summary" aria-label="分天摘要"><h2>分天摘要</h2><div id="summaryBox"></div></section>
     <section class="clay-card area-export" aria-label="匯出"><h2>匯出</h2><div id="controlsBox"></div></section>
   </div>`;
 
