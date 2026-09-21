@@ -1,5 +1,5 @@
 import { computeDayTime, formatDuration, formatSpeed, formatTime } from '../core/dayTime';
-import { computeElevationProfile } from '../core/elevation';
+import { computeElevationGain, computeElevationProfile } from '../core/elevation';
 import type { AppState } from '../state';
 import { renderElevationSvg } from './elevationProfile';
 
@@ -52,8 +52,16 @@ export function mountSummary(container: HTMLElement, state: AppState) {
     const eleHtml = prof.hasData
       ? renderElevationSvg(day, prof)
       : `<p class="elevation-empty">${NO_ELEVATION_TEXT}</p>`;
+    const gain = computeElevationGain(day);
+    const gainHtml =
+      prof.hasData && gain.hasData
+        ? `<div class="day-elevation-stats">` +
+          `<div class="day-stat-item"><span class="day-stat-label">爬升</span><span class="day-stat-value">${Math.round(gain.ascentM)} m</span></div>` +
+          `<div class="day-stat-item"><span class="day-stat-label">下降</span><span class="day-stat-value">${Math.round(gain.descentM)} m</span></div>` +
+          `</div>`
+        : '';
     const timeHtml = renderTimeStats(day, state.timeZone);
-    return `<div class="day-expanded-wrap">${eleHtml}${timeHtml}</div>`;
+    return `<div class="day-expanded-wrap"><div class="day-elevation-col">${eleHtml}${gainHtml}</div>${timeHtml}</div>`;
   }
 
   function render() {
@@ -102,7 +110,13 @@ export function mountSummary(container: HTMLElement, state: AppState) {
 
 export function mountStats(container: HTMLElement, state: AppState) {
   function render() {
-    container.innerHTML = `<p><strong>${state.days.length}</strong> 天 · <strong>${state.totalKm.toFixed(1)}</strong> km</p>`;
+    if (state.days.length === 0) {
+      container.innerHTML = '<p class="empty-note">上傳 GPX 後會顯示整趟統計</p>';
+      return;
+    }
+    const ascent = state.totalAscentM;
+    const ascentHtml = ascent !== null ? ` · <strong>${Math.round(ascent)}</strong> m 爬升` : '';
+    container.innerHTML = `<p><strong>${state.days.length}</strong> 天 · <strong>${state.totalKm.toFixed(1)}</strong> km${ascentHtml}</p>`;
   }
   state.subscribe(render);
   render();

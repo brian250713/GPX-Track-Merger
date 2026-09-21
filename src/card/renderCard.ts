@@ -6,7 +6,7 @@ import { webMercator } from '../core/geo';
 import { getBasemap } from '../map/basemaps';
 
 export const CARD_SIZE = 2160;
-const PADDING = 96;
+export const PADDING = 96;
 const MAP_RECT = { x: 96, y: 360, w: 1968, h: 1280 };
 const BORDER_W = 6;
 const RADIUS = 48;
@@ -16,6 +16,8 @@ export interface RenderOptions {
   days: Day[];
   title: string;
   totalKm: number;
+  /** Total ascent in meters; `null` when no day has elevation data (pill omitted). */
+  totalAscentM: number | null;
   style: 'with-basemap' | 'minimal';
   basemapId?: string;
 }
@@ -40,7 +42,30 @@ export function formatDayLabel(date: string): string {
 
 /** Characters preloaded for card fonts; must cover legend labels (`/`) too. */
 export function cardFontSample(title: string): string {
-  return `Day 1234567890/.- – km天總距離 ${title}`;
+  return `Day 1234567890/.- – km天總距離爬升 ${title}`;
+}
+
+/** Footer pill texts: days, distance, and ascent (omitted when `null`). */
+export function buildPillTexts(dayCount: number, totalKm: number, totalAscentM: number | null): string[] {
+  const pills = [`${dayCount} 天`, `${totalKm.toFixed(1)} km`];
+  if (totalAscentM !== null) pills.push(`爬升 ${Math.round(totalAscentM)} m`);
+  return pills;
+}
+
+const PILL_GAP = 32;
+const PILL_PAD = 80;
+
+/**
+ * Pure pill-row width: sum of `(measure(text) + PAD)` plus gaps.
+ * `measure` mirrors `ctx.measureText(text).width` so tests can inject an estimate.
+ */
+export function pillsTotalWidth(texts: string[], measure: (label: string) => number): number {
+  let total = 0;
+  texts.forEach((t, i) => {
+    if (i > 0) total += PILL_GAP;
+    total += measure(t) + PILL_PAD;
+  });
+  return total;
 }
 
 /**
@@ -241,7 +266,7 @@ async function drawBasemapTracks(
 }
 
 export async function renderTripCard(opts: RenderOptions): Promise<Blob> {
-  const { days, title, totalKm, style, basemapId = 'osm-standard' } = opts;
+  const { days, title, totalKm, totalAscentM, style, basemapId = 'osm-standard' } = opts;
   if (days.length === 0) throw new Error('沒有軌跡資料');
   await ensureCardFonts(title);
 
@@ -311,8 +336,11 @@ export async function renderTripCard(opts: RenderOptions): Promise<Blob> {
     return w;
   };
   let px = PADDING;
-  px += drawPill(px, `${days.length} 天`, tokens.primary) + 32;
-  px += drawPill(px, `${totalKm.toFixed(1)} km`, tokens.accentMint) + 32;
+  const pillTexts = buildPillTexts(days.length, totalKm, totalAscentM);
+  const pillBgs = [tokens.primary, tokens.accentMint, tokens.secondary];
+  pillTexts.forEach((text, i) => {
+    px += drawPill(px, text, pillBgs[i % pillBgs.length]) + 32;
+  });
 
   // Legend
   ctx.font = `700 44px "Fredoka Variable", "Chiron GoRound TC Variable", sans-serif`;

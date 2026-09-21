@@ -66,6 +66,7 @@ export function mountControls(container: HTMLElement, state: AppState) {
         days: state.days,
         title: state.title,
         totalKm: state.totalKm,
+        totalAscentM: state.totalAscentM,
         style: state.cardStyle,
       });
       const first = state.days[0].date;

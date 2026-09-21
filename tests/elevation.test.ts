@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { computeElevationProfile } from '../src/core/elevation';
+import {
+  ASCENT_THRESHOLD_M,
+  computeElevationGain,
+  computeElevationProfile,
+  totalAscentM,
+} from '../src/core/elevation';
 import { haversineMeters } from '../src/core/geo';
 import type { Day, TrackPoint } from '../src/core/types';
 
@@ -125,5 +130,123 @@ describe('computeElevationProfile', () => {
     const prof = computeElevationProfile(dayWith([seg1, seg2]));
     expect(prof.minEle).toBe(40);
     expect(prof.maxEle).toBe(320);
+  });
+});
+
+/** One segment walking east, one point per `ele` entry (undefined = no `<ele>`). */
+function segOf(eles: (number | undefined)[]): TrackPoint[] {
+  const step = lonDelta(20);
+  return eles.map((e, i) => pt(0, i * step, e, i * 10));
+}
+
+const range = (n: number, f: (i: number) => number | undefined) =>
+  Array.from({ length: n }, (_, i) => f(i));
+
+/** 100 points, each 1 m higher than the previous (30 -> 129). */
+const ramp = range(100, (i) => 30 + i);
+
+describe('computeElevationGain', () => {
+  it('1.1 threshold constant is 5 and an empty day has no data', () => {
+    expect(ASCENT_THRESHOLD_M).toBe(5);
+    expect(computeElevationGain(dayWith([])).hasData).toBe(false);
+  });
+
+  it('1.2 monotonic 1 m steps are not underestimated', () => {
+    const g = computeElevationGain(dayWith([segOf(ramp)]));
+    expect(g.ascentM).toBeGreaterThanOrEqual(95);
+    expect(g.ascentM).toBeLessThanOrEqual(100);
+    expect(g.descentM).toBe(0);
+  });
+
+  it('1.2 rolling terrain: +200, -150, +80', () => {
+    const eles = [...range(201, (i) => i), ...range(150, (i) => 199 - i), ...range(80, (i) => 51 + i)];
+    const g = computeElevationGain(dayWith([segOf(eles)]));
+    expect(g.ascentM).toBeCloseTo(280, 0);
+    expect(g.descentM).toBeCloseTo(150, 0);
+  });
+
+  it('1.3 ±4 m noise around 40 m never accumulates, whatever the starting phase', () => {
+    const phases = [
+      range(200, (i) => [40, 44, 40, 36][i % 4]),
+      range(200, (i) => (i % 2 ? 44 : 36)),
+      range(200, (i) => (i % 2 ? 36 : 44)),
+      range(200, (i) => 40 + 4 * Math.sin(i * 1.7)),
+    ];
+    for (const eles of phases) {
+      const g = computeElevationGain(dayWith([segOf(eles)]));
+      expect(g.ascentM).toBe(0);
+      expect(g.descentM).toBe(0);
+    }
+  });
+
+  it('1.4 exactly ±5.0 m steps are ignored', () => {
+    const g = computeElevationGain(dayWith([segOf(range(40, (i) => (i % 2 ? 5 : 0)))]));
+    expect(g.ascentM).toBe(0);
+    expect(g.descentM).toBe(0);
+  });
+
+  it('1.4 the noise band is strict: a 10.0 m rise is ignored, 10.5 m counts', () => {
+    const flatThenUp = (h: number) => [...range(10, () => 100), ...range(10, () => 100 + h)];
+    expect(computeElevationGain(dayWith([segOf(flatThenUp(2 * ASCENT_THRESHOLD_M))])).ascentM).toBe(0);
+    expect(computeElevationGain(dayWith([segOf(flatThenUp(10.5))])).ascentM).toBeCloseTo(10.5, 6);
+  });
+
+  it('1.5 reference resets per segment: the gap between segments is not counted', () => {
+    const seg1 = segOf(range(51, (i) => 10 + i));
+    const seg2 = segOf(range(51, (i) => 810 + i));
+    const g = computeElevationGain(dayWith([seg1, seg2]));
+    expect(g.ascentM).toBeCloseTo(100, 0);
+    expect(g.descentM).toBe(0);
+  });
+
+  it('1.6 points without elevation are skipped without breaking the segment', () => {
+    const full = computeElevationGain(dayWith([segOf(ramp)]));
+    const holes = computeElevationGain(
+      dayWith([segOf(ramp.map((e, i) => (i >= 40 && i < 50 ? undefined : e)))]),
+    );
+    expect(holes.ascentM).toBe(full.ascentM);
+    expect(holes.descentM).toBe(full.descentM);
+  });
+
+  it('1.7 fewer than 2 usable points means no data, with finite zeros', () => {
+    for (const eles of [
+      [undefined, undefined, undefined],
+      [undefined, 120, undefined],
+    ]) {
+      const g = computeElevationGain(dayWith([segOf(eles)]));
+      expect(g.hasData).toBe(false);
+      expect(g.ascentM).toBe(0);
+      expect(g.descentM).toBe(0);
+      expect(Number.isFinite(g.ascentM) && Number.isFinite(g.descentM)).toBe(true);
+    }
+  });
+
+  it('1.8 ascent and descent share the same threshold', () => {
+    const up = computeElevationGain(dayWith([segOf(ramp)]));
+    const down = computeElevationGain(dayWith([segOf(ramp.map((e) => -(e as number)))]));
+    expect(down.descentM).toBe(up.ascentM);
+    expect(down.ascentM).toBe(0);
+  });
+});
+
+describe('totalAscentM', () => {
+  it('1.9 sums days (100 / 0 / 250 -> 350)', () => {
+    const days = [
+      dayWith([segOf([0, 100])]),
+      dayWith([segOf([0, 0])]),
+      dayWith([segOf([0, 250])]),
+    ];
+    expect(totalAscentM(days)).toBeCloseTo(350, 6);
+  });
+
+  it('1.9 a day without elevation contributes 0', () => {
+    const days = [dayWith([segOf([0, 100])]), dayWith([segOf([undefined, undefined])]), dayWith([segOf([0, 250])])];
+    expect(totalAscentM(days)).toBeCloseTo(350, 6);
+  });
+
+  it('1.9 no elevation on any day -> null', () => {
+    const none = () => dayWith([segOf([undefined, undefined])]);
+    expect(totalAscentM([none(), none(), none()])).toBeNull();
+    expect(totalAscentM([])).toBeNull();
   });
 });
