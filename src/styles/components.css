@@ -135,20 +135,25 @@ h1, h2, h3 { font-family: var(--font-heading); }
   gap: 8px;
   align-items: flex-start;
 }
-/* SVG scales with the container; never forces a horizontal scrollbar. */
+/* Left column of the expanded day: the profile chart (or its no-data note). */
+.day-elevation-col {
+  flex: 1 1 320px;
+  max-width: 420px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* SVG scales with the column; never forces a horizontal scrollbar. */
 .elevation-container svg {
   display: block;
-  flex: 1 1 320px;
+  box-sizing: border-box;
   width: 100%;
   height: auto;
-  max-width: 420px;
   background: var(--bg);
   border: 2px solid var(--text);
   border-radius: 12px;
 }
 .elevation-empty {
-  flex: 1 1 320px;
-  max-width: 420px;
   margin: 0;
   padding: 12px;
   color: var(--text-muted);

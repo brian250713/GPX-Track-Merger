@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Day, TrackPoint } from '../src/core/types';
 import type { AppState } from '../src/state';
-import { mountSummary } from '../src/ui/summary';
+import { totalAscentM } from '../src/core/elevation';
+import { totalDistanceKm } from '../src/core/grouping';
+import { mountStats, mountSummary } from '../src/ui/summary';
 
 const T0 = Date.parse('2026-03-12T01:00:00Z');
 
@@ -271,6 +273,121 @@ describe('day time and pace integration in summary accordion', () => {
     expect(btnText).not.toContain('行進時間');
     expect(btnText).not.toContain('均速');
     expect(btnText).not.toMatch(/\d{2}:\d{2}/);
+  });
+});
+
+describe('ascent and descent in the summary accordion', () => {
+  let container: HTMLElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  it('2.1 expanded wrap has two children and the chart sits in .day-elevation-col', () => {
+    const state = stub([eleDay(1, '2026-03-12')]);
+    mountSummary(container, state as unknown as AppState);
+    buttons(container)[0].click();
+    const wrap = container.querySelector('.day-expanded-wrap')!;
+    expect(wrap.children).toHaveLength(2);
+    expect(wrap.children[0].classList.contains('day-elevation-col')).toBe(true);
+    expect(wrap.children[1].classList.contains('day-time-stats')).toBe(true);
+    expect(wrap.querySelector('.day-elevation-col svg')).not.toBeNull();
+  });
+
+  it('2.2 ascent and descent join the day stats grid after the time items', () => {
+    // eleDay climbs 40 -> 320 m in one segment.
+    const state = stub([eleDay(1, '2026-03-12')]);
+    mountSummary(container, state as unknown as AppState);
+    buttons(container)[0].click();
+    const stats = container.querySelector('.day-time-stats')!;
+    const items = [...stats.querySelectorAll('.day-stat-item')].map((el) => [
+      el.querySelector('.day-stat-label')?.textContent,
+      el.querySelector('.day-stat-value')?.textContent,
+    ]);
+    expect(items.map(([label]) => label)).toEqual([
+      '出發',
+      '抵達',
+      '總時長',
+      '行進時間',
+      '均速',
+      '爬升',
+      '下降',
+    ]);
+    expect(items.slice(5)).toEqual([
+      ['爬升', '280 m'],
+      ['下降', '0 m'],
+    ]);
+    // Nothing ascent-related is left under the chart.
+    expect(container.querySelector('.day-elevation-col')!.textContent).not.toContain('爬升');
+  });
+
+  it('2.3 a day without elevation shows the note and only the time items', () => {
+    const state = stub([flatDay(1, '2026-03-12'), eleDay(2, '2026-03-13')]);
+    mountSummary(container, state as unknown as AppState);
+    buttons(container)[0].click();
+    const wrap = container.querySelector('.day-expanded-wrap')!;
+    expect(wrap.textContent).toContain('該天沒有高度資料');
+    expect(wrap.textContent).not.toContain('爬升');
+    expect(wrap.textContent).not.toContain('下降');
+    expect(wrap.querySelectorAll('.day-time-stats .day-stat-item')).toHaveLength(5);
+
+    buttons(container)[1].click();
+    expect(container.querySelectorAll('.day-time-stats .day-stat-item')).toHaveLength(7);
+  });
+
+  it('collapsed rows carry no ascent information', () => {
+    const state = stub([eleDay(1, '2026-03-12')]);
+    mountSummary(container, state as unknown as AppState);
+    expect(buttons(container)[0].textContent).not.toContain('爬升');
+  });
+});
+
+function statsStub(days: Day[]) {
+  const s = stub(days) as StubState & { totalKm: number; totalAscentM: number | null };
+  Object.defineProperty(s, 'totalKm', { get: () => totalDistanceKm(s.days) });
+  Object.defineProperty(s, 'totalAscentM', { get: () => totalAscentM(s.days) });
+  return s;
+}
+
+describe('trip stats', () => {
+  it('3.2 appends labelled total ascent after days and distance', () => {
+    const c = document.createElement('div');
+    mountStats(c, statsStub([eleDay(1, '2026-03-12'), flatDay(2, '2026-03-13')]) as unknown as AppState);
+    const text = c.textContent!;
+    expect(text).toMatch(/2\s*天 · 3\.0\s*km · 280\s*m 爬升/);
+  });
+
+  it('3.3 omits ascent entirely when no day has elevation', () => {
+    const c = document.createElement('div');
+    mountStats(c, statsStub([flatDay(1, '2026-03-12')]) as unknown as AppState);
+    expect(c.textContent).toMatch(/1\s*天 · 1\.0\s*km$/);
+    expect(c.textContent).not.toContain('爬升');
+    expect(c.textContent).not.toMatch(/\b0\s*m/);
+  });
+
+  it('3.4 never shows total descent', () => {
+    const c = document.createElement('div');
+    mountStats(c, statsStub([eleDay(1, '2026-03-12')]) as unknown as AppState);
+    expect(c.textContent).not.toContain('下降');
+  });
+
+  it('3.5 empty state shows no 0 天, 0.0 km or NaN', () => {
+    const c = document.createElement('div');
+    mountStats(c, statsStub([]) as unknown as AppState);
+    expect(c.textContent).not.toContain('0 天');
+    expect(c.textContent).not.toContain('0.0 km');
+    expect(c.textContent).not.toContain('NaN');
+    expect(c.textContent!.trim().length).toBeGreaterThan(0);
+  });
+
+  it('re-renders when the state changes', () => {
+    const c = document.createElement('div');
+    const s = statsStub([]);
+    mountStats(c, s as unknown as AppState);
+    s.days = [eleDay(1, '2026-03-12')];
+    s.emit();
+    expect(c.textContent).toContain('280');
   });
 });
 

@@ -55,16 +55,36 @@ describe('swap summary and stats layout', () => {
     expect(componentsCss).toMatch(/\.area-stats\s*\{[^}]*background:\s*var\(--secondary\)/);
   });
 
-  it('2.1 .elevation-container svg 含 max-width: 420px', () => {
-    const svgRuleMatch = componentsCss.match(/\.elevation-container svg\s*\{([^}]+)\}/);
-    expect(svgRuleMatch).not.toBeNull();
-    expect(svgRuleMatch![1]).toContain('max-width: 420px');
-    expect(svgRuleMatch![1]).not.toContain('max-width: 100%');
+  it('2.1 .day-elevation-col 含 max-width: 420px', () => {
+    const colRuleMatch = componentsCss.match(/\.day-elevation-col\s*\{([^}]+)\}/);
+    expect(colRuleMatch).not.toBeNull();
+    expect(colRuleMatch![1]).toContain('max-width: 420px');
+    expect(colRuleMatch![1]).not.toContain('max-width: 100%');
+  });
+
+  it('2.4 .day-elevation-col 為直向 flex 欄，剖面 SVG 與說明文字不再帶 flex 與 max-width', () => {
+    const col = componentsCss.match(/\.day-elevation-col\s*\{([^}]+)\}/)![1];
+    expect(col).toContain('flex: 1 1 320px');
+    expect(col).toContain('max-width: 420px');
+    expect(col).toContain('min-width: 0');
+    expect(col).toContain('flex-direction: column');
+
+    const svg = componentsCss.match(/\.elevation-container svg\s*\{([^}]+)\}/)![1];
+    expect(svg).toContain('width: 100%');
+    expect(svg).toContain('height: auto');
+    expect(svg).not.toMatch(/\bflex:/);
+    expect(svg).not.toContain('max-width');
+    // Border included in the 100% width, so the chart never pokes past its column.
+    expect(svg).toContain('box-sizing: border-box');
+
+    const empty = componentsCss.match(/\.elevation-empty\s*\{([^}]+)\}/)![1];
+    expect(empty).not.toMatch(/\bflex:/);
+    expect(empty).not.toContain('max-width');
   });
 
   it('3.2 展開區塊以 flex-wrap 實作並排且無新增 @media', () => {
     expect(componentsCss).toMatch(/\.day-expanded-wrap\s*\{[^}]*flex-wrap:\s*wrap/);
-    expect(componentsCss).toMatch(/\.elevation-container svg\s*\{[^}]*flex:\s*1 1 320px/);
+    expect(componentsCss).toMatch(/\.day-elevation-col\s*\{[^}]*flex:\s*1 1 320px/);
     expect(componentsCss).toMatch(/\.day-time-stats\s*\{[^}]*flex:\s*1 1 260px/);
 
     // 展開區塊段落未引入任何新的 @media

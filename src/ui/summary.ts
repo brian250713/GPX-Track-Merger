@@ -1,11 +1,23 @@
 import { computeDayTime, formatDuration, formatSpeed, formatTime } from '../core/dayTime';
-import { computeElevationProfile } from '../core/elevation';
+import { computeElevationGain, computeElevationProfile } from '../core/elevation';
 import type { AppState } from '../state';
 import { renderElevationSvg } from './elevationProfile';
 
 export const NO_ELEVATION_TEXT = '該天沒有高度資料';
 
-function renderTimeStats(day: (typeof AppState.prototype.days)[number], timeZone: string): string {
+type SummaryDay = (typeof AppState.prototype.days)[number];
+
+/** Ascent/descent items for the day stats grid; empty when the day has no elevation. */
+function renderGainItems(day: SummaryDay): string {
+  const gain = computeElevationGain(day);
+  if (!gain.hasData) return '';
+  return (
+    `<div class="day-stat-item"><span class="day-stat-label">爬升</span><span class="day-stat-value">${Math.round(gain.ascentM)} m</span></div>` +
+    `<div class="day-stat-item"><span class="day-stat-label">下降</span><span class="day-stat-value">${Math.round(gain.descentM)} m</span></div>`
+  );
+}
+
+function renderDayStats(day: SummaryDay, timeZone: string): string {
   const stats = computeDayTime(day);
   const tz = timeZone || 'UTC';
   const startStr = stats.startTime ? formatTime(stats.startTime, tz) : '無法計算';
@@ -21,6 +33,7 @@ function renderTimeStats(day: (typeof AppState.prototype.days)[number], timeZone
     `<div class="day-stat-item"><span class="day-stat-label">總時長</span><span class="day-stat-value">${totalStr}</span></div>` +
     `<div class="day-stat-item"><span class="day-stat-label">行進時間</span><span class="day-stat-value">${movingStr}</span></div>` +
     `<div class="day-stat-item"><span class="day-stat-label">均速</span><span class="day-stat-value">${speedStr}</span></div>` +
+    renderGainItems(day) +
     `</div>`
   );
 }
@@ -52,8 +65,8 @@ export function mountSummary(container: HTMLElement, state: AppState) {
     const eleHtml = prof.hasData
       ? renderElevationSvg(day, prof)
       : `<p class="elevation-empty">${NO_ELEVATION_TEXT}</p>`;
-    const timeHtml = renderTimeStats(day, state.timeZone);
-    return `<div class="day-expanded-wrap">${eleHtml}${timeHtml}</div>`;
+    const statsHtml = renderDayStats(day, state.timeZone);
+    return `<div class="day-expanded-wrap"><div class="day-elevation-col">${eleHtml}</div>${statsHtml}</div>`;
   }
 
   function render() {
@@ -102,7 +115,13 @@ export function mountSummary(container: HTMLElement, state: AppState) {
 
 export function mountStats(container: HTMLElement, state: AppState) {
   function render() {
-    container.innerHTML = `<p><strong>${state.days.length}</strong> 天 · <strong>${state.totalKm.toFixed(1)}</strong> km</p>`;
+    if (state.days.length === 0) {
+      container.innerHTML = '<p class="empty-note">上傳 GPX 後會顯示整趟統計</p>';
+      return;
+    }
+    const ascent = state.totalAscentM;
+    const ascentHtml = ascent !== null ? ` · <strong>${Math.round(ascent)}</strong> m 爬升` : '';
+    container.innerHTML = `<p><strong>${state.days.length}</strong> 天 · <strong>${state.totalKm.toFixed(1)}</strong> km${ascentHtml}</p>`;
   }
   state.subscribe(render);
   render();

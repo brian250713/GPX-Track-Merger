@@ -1,3 +1,4 @@
+import { totalAscentM } from './core/elevation';
 import { groupByDay, mergeAndSort, totalDistanceKm } from './core/grouping';
 import { parseGpx } from './core/parse';
 import { readPhotoMeta, type PhotoMeta } from './core/photoMeta';
@@ -186,5 +187,9 @@ export class AppState {
 
   get totalKm(): number {
     return totalDistanceKm(this.days);
+  }
+
+  get totalAscentM(): number | null {
+    return totalAscentM(this.days);
   }
 }
