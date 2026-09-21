@@ -135,7 +135,7 @@ h1, h2, h3 { font-family: var(--font-heading); }
   gap: 8px;
   align-items: flex-start;
 }
-/* Left column of the expanded day: profile chart with ascent/descent below. */
+/* Left column of the expanded day: the profile chart (or its no-data note). */
 .day-elevation-col {
   flex: 1 1 320px;
   max-width: 420px;
@@ -159,17 +159,6 @@ h1, h2, h3 { font-family: var(--font-heading); }
   color: var(--text-muted);
   font-size: 14px;
   text-align: center;
-}
-/* Ascent/descent figures under the profile chart. */
-.day-elevation-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--bg);
-  border: 2px solid var(--text);
-  border-radius: 12px;
-  min-width: 0;
 }
 /* Time and pace stats within expanded day accordion */
 .day-time-stats {

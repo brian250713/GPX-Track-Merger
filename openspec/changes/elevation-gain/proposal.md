@@ -9,7 +9,7 @@
 ## What Changes
 
 - 新增每天的累積爬升與累積下降計算。使用 ±5 公尺雜訊帶的轉折點法（hysteresis，轉折需反向超過 10 公尺），而不是相鄰點正負差的直接加總——後者會把 GPS 高度雜訊全部算成爬升，一條平路的 40 公里可以「爬升」數百公尺。
-- 分天摘要展開後，在高度剖面下方顯示該天的爬升與下降。
+- 分天摘要展開後，在右側統計區塊的均速之後顯示該天的爬升與下降。
 - 統計區塊在既有的「N 天 · X km」之後追加整趟總爬升。
 - 圖卡新增第三顆 pill 顯示總爬升。
 - 補上統計區塊顯示內容的規格（含既有的天數與總距離）。
@@ -35,8 +35,8 @@
 
 - `src/core/elevation.ts`：新增 `ASCENT_THRESHOLD_M`、`computeElevationGain(day)` 與 `totalAscentM(days)`。純函式，輸入 `Day`，可直接測試。既有的 `computeElevationProfile` 不動。
 - `src/state.ts`：新增 `totalAscentM` getter，與既有的 `totalKm` 同一個形狀。
-- `src/ui/summary.ts`：`rowBody` 多包一層欄容器，掛上爬升區塊；`mountStats` 追加總爬升。計算不落在 UI 層。
-- `src/styles/components.css`：新增 `.day-elevation-col` 與 `.day-elevation-stats`；`.elevation-container svg` 與 `.elevation-empty` 卸下已失效的 flex 屬性。
+- `src/ui/summary.ts`：`rowBody` 把剖面圖包進一層欄容器，統計區塊在均速之後追加爬升與下降；`mountStats` 追加總爬升。計算不落在 UI 層。
+- `src/styles/components.css`：新增 `.day-elevation-col`；`.elevation-container svg` 與 `.elevation-empty` 卸下已失效的 flex 屬性。
 - `src/card/renderCard.ts`：`RenderOptions` 多一個總爬升欄位，`drawPill` 迴圈多一顆，`cardFontSample` 加入「爬升」兩字（字型預載的字元集不含它的話，第三顆 pill 會掉到 fallback 字型）。
 - `tests/layout.test.ts`：兩條 CSS 斷言改選擇器。`tests/elevation.test.ts`、`tests/summary.test.ts`、`tests/card.test.ts` 新增案例。
 - 不新增任何第三方相依套件。

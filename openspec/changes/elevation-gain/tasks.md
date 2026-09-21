@@ -13,13 +13,13 @@
 
 ## 2. 分天摘要顯示
 
-- [x] 2.1 在 `src/ui/summary.ts` 的 `rowBody` 把剖面 SVG（或無高度資料的說明文字）與新的爬升區塊包進一層 `.day-elevation-col`，`.day-time-stats` 維持為 `.day-expanded-wrap` 的第二個子元素。驗證：`tests/summary.test.ts` 展開一天後，斷言 `.day-expanded-wrap` 恰有兩個子元素，且 SVG 位於 `.day-elevation-col` 內
-- [x] 2.2 新增 `.day-elevation-stats`，含爬升與下降兩項，沿用既有的 `.day-stat-label` 與 `.day-stat-value`，數值為整數公尺。驗證：`tests/summary.test.ts` 斷言展開後存在「爬升」與「下降」兩個標籤與對應數值，對應「展開後顯示」情境
-- [x] 2.3 沒有高度資料的一天不顯示爬升數值。驗證：`tests/summary.test.ts` 新增案例，斷言該天顯示既有的說明文字，且展開區塊內不含「爬升」字樣，對應「不顯示 0 公尺」情境
+- [x] 2.1 在 `src/ui/summary.ts` 的 `rowBody` 把剖面 SVG（或無高度資料的說明文字）包進一層 `.day-elevation-col`，`.day-time-stats` 維持為 `.day-expanded-wrap` 的第二個子元素。驗證：`tests/summary.test.ts` 展開一天後，斷言 `.day-expanded-wrap` 恰有兩個子元素，且 SVG 位於 `.day-elevation-col` 內
+- [x] 2.2 在 `.day-time-stats` 的均速之後追加爬升與下降兩項，沿用既有的 `.day-stat-item`、`.day-stat-label` 與 `.day-stat-value`，數值為整數公尺，不另設區塊。驗證：`tests/summary.test.ts` 斷言統計區塊的標籤依序為出發、抵達、總時長、行進時間、均速、爬升、下降，且 `.day-elevation-col` 內不含「爬升」，對應「展開後顯示」情境
+- [x] 2.3 沒有高度資料的一天不顯示爬升數值。驗證：`tests/summary.test.ts` 新增案例，斷言該天顯示既有的說明文字、展開區塊內不含「爬升」字樣，且統計區塊只有五項，對應「不顯示 0 公尺」情境
 - [x] 2.4 在 `src/styles/components.css` 新增 `.day-elevation-col { flex: 1 1 320px; max-width: 420px; min-width: 0; display: flex; flex-direction: column; }`，並把 `flex` 與 `max-width` 從 `.elevation-container svg` 與 `.elevation-empty` 卸下（SVG 保留 `width: 100%; height: auto`）。驗證：CSS 文字斷言 `.day-elevation-col` 含該三項、`.elevation-container svg` 不再含 `flex:` 與 `max-width`
 - [x] 2.5 更新 `tests/layout.test.ts` 既有的兩條斷言：`2.1` 的 `max-width: 420px` 與 `3.2` 的 `flex: 1 1 320px` 改為斷言在 `.day-elevation-col` 上。驗證：兩條測試通過；同時保留原本「該段落不含 `@media`」與 `.day-time-stats` 的 `flex: 1 1 260px` 兩項斷言不變
 - [x] 2.6 確認 `.day-time-stats` 的 `repeat(auto-fit, minmax(100px, 1fr))` 與 `flex: 1 1 260px` 原樣保留。驗證：`tests/layout.test.ts` 的 `3.4` 斷言通過且未修改
-- [ ] 2.7 手動驗收三個寬度。驗證：1280px 下剖面圖與其下方的爬升在左、時間統計在右；900px 下版面正常；400px 下爬升在剖面圖下方、時間統計再下方，頁面沒有水平捲軸——對應「與時間統計並存」與「窄容器堆疊」兩個情境
+- [ ] 2.7 手動驗收三個寬度。驗證：1280px 下剖面圖在左、含爬升與下降的統計區塊在右；900px 下版面正常；400px 下統計區塊在剖面圖下方，頁面沒有水平捲軸——對應「與高度剖面並存」與「窄容器堆疊」兩個情境
 
 ## 3. 整趟統計
 

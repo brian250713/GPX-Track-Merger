@@ -295,27 +295,34 @@ describe('ascent and descent in the summary accordion', () => {
     expect(wrap.querySelector('.day-elevation-col svg')).not.toBeNull();
   });
 
-  it('2.2 shows labelled ascent and descent as whole meters under the chart', () => {
+  it('2.2 ascent and descent join the day stats grid after the time items', () => {
     // eleDay climbs 40 -> 320 m in one segment.
     const state = stub([eleDay(1, '2026-03-12')]);
     mountSummary(container, state as unknown as AppState);
     buttons(container)[0].click();
-    const col = container.querySelector('.day-elevation-col')!;
-    const stats = col.querySelector('.day-elevation-stats')!;
-    expect(stats).not.toBeNull();
-    // Stats come after the chart within the same column.
-    expect(col.lastElementChild).toBe(stats);
+    const stats = container.querySelector('.day-time-stats')!;
     const items = [...stats.querySelectorAll('.day-stat-item')].map((el) => [
       el.querySelector('.day-stat-label')?.textContent,
       el.querySelector('.day-stat-value')?.textContent,
     ]);
-    expect(items).toEqual([
+    expect(items.map(([label]) => label)).toEqual([
+      '出發',
+      '抵達',
+      '總時長',
+      '行進時間',
+      '均速',
+      '爬升',
+      '下降',
+    ]);
+    expect(items.slice(5)).toEqual([
       ['爬升', '280 m'],
       ['下降', '0 m'],
     ]);
+    // Nothing ascent-related is left under the chart.
+    expect(container.querySelector('.day-elevation-col')!.textContent).not.toContain('爬升');
   });
 
-  it('2.3 a day without elevation shows the note and no ascent figures', () => {
+  it('2.3 a day without elevation shows the note and only the time items', () => {
     const state = stub([flatDay(1, '2026-03-12'), eleDay(2, '2026-03-13')]);
     mountSummary(container, state as unknown as AppState);
     buttons(container)[0].click();
@@ -323,10 +330,10 @@ describe('ascent and descent in the summary accordion', () => {
     expect(wrap.textContent).toContain('該天沒有高度資料');
     expect(wrap.textContent).not.toContain('爬升');
     expect(wrap.textContent).not.toContain('下降');
-    expect(wrap.querySelector('.day-elevation-stats')).toBeNull();
+    expect(wrap.querySelectorAll('.day-time-stats .day-stat-item')).toHaveLength(5);
 
     buttons(container)[1].click();
-    expect(container.querySelector('.day-elevation-stats')?.textContent).toContain('爬升');
+    expect(container.querySelectorAll('.day-time-stats .day-stat-item')).toHaveLength(7);
   });
 
   it('collapsed rows carry no ascent information', () => {
